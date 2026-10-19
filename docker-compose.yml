@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: cold-chain-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cold-chain-postgres
+      POSTGRES_USER: me
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data_new:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with devbyte
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U me -d cold-chain-postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_new:
