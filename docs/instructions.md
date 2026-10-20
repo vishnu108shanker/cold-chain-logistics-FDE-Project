@@ -1,5 +1,28 @@
 # Phase 0
 
+## Connecting to PostgreSQL
+
+Start PostgreSQL and the Adminer database UI from the project directory:
+
+```
+docker compose up -d postgres adminer
+```
+
+Open http://localhost:8080 and sign in with:
+
+| Field | Value |
+| --- | --- |
+| System | PostgreSQL |
+| Server | `postgres` |
+| Username | `me` |
+| Password | The `POSTGRES_PASSWORD` value from your `.env` file |
+| Database | `cold-chain-postgres` |
+
+Adminer runs in the same Compose network as PostgreSQL, so use the service name
+`postgres` and the container port `5432` in Adminer. For a database client
+running directly on your computer, connect to `localhost:5433` instead.
+Adminer is bound to localhost and is not exposed to other machines on your network.
+
 ## Ingesting data
 
 - Download the dataset from 'data\source\data.txt'
@@ -57,24 +80,75 @@ We need to query the database
 - SQL
 - SELECT COUNT(*) AS total_rows FROM dbo.TBL_SC_FLEET_HIST_RAW;
 
-## instruction for Ec2 instance > datbase
-- Instance type : c7i-flex.large
-- storage : 30 gb
-- ubuntu (linux)
-- Security group > attach the security while creating ec2 instance
-- Launch instance
-- SSH using .pem file from your system
-- install the docker
-- 
-```
-docker run -v mssql_data:/var/opt/mssql \
-  -e "ACCEPT_EULA=Y" \
-  -e "MSSQL_SA_PASSWORD=FdeEnterprisePass123!" \
-  -p 1433:1433 \
-  --name legacy-mssql \
-  -d mcr.microsoft.com/mssql/server:2022-latest
-```
-- copy the ip address of the ec2 (public)
+## PostgreSQL on an EC2 instance
+
+This uses the project's `docker-compose.yml` to run PostgreSQL 17 with a
+persistent Docker volume. The database port is bound to the EC2 instance's
+loopback interface, so it is not directly exposed to the internet. Use an SSH
+tunnel when connecting from your computer.
+
+1. Create an Ubuntu EC2 instance and allow inbound SSH (TCP 22) only from your
+   current public IP in its security group. Do not add an inbound rule for
+   PostgreSQL (TCP 5433).
+2. From PowerShell on your computer, SSH into the instance (replace the key
+   path and public IP):
+
+   ```
+   ssh -i "C:\path\to\your-key.pem" ubuntu@EC2_PUBLIC_IP
+   ```
+
+3. On the EC2 instance, install Docker and Compose, then clone this repository:
+
+   ```
+   sudo apt update
+   sudo apt install -y docker.io docker-compose-v2 git openssl
+   sudo systemctl enable --now docker
+   cd ~
+   git clone https://github.com/vishnu108shanker/cold-chain-logistics-FDE-Project.git
+   cd cold-chain-logistics-FDE-Project
+   ```
+
+   If you already cloned the repository, `cd` into that checkout and pull the
+   version containing `docker-compose.yml` instead.
+
+4. Create a private `.env` file with a new, randomly generated database password,
+   then start the services:
+
+   ```
+   umask 077
+   printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > .env
+   sudo docker compose up -d postgres adminer
+   sudo docker compose ps
+   sudo docker compose exec postgres pg_isready -U me -d cold-chain-postgres
+   ```
+
+   Keep this `.env` file and password private. PostgreSQL data persists in the
+   `postgres_data_new` Docker volume when containers are restarted or recreated.
+   This password-generation step is for a fresh database volume: changing
+   `POSTGRES_PASSWORD` in `.env` later does not change the password of a database
+   that PostgreSQL has already initialized. Do not run `docker compose down -v`
+   unless you intend to delete the database data.
+
+5. To connect from your computer, keep the SSH session open and open a second
+   PowerShell window. Forward the database and (optionally) Adminer ports:
+
+   ```
+   ssh -i "C:\path\to\your-key.pem" -N `
+     -L 5433:127.0.0.1:5433 `
+     -L 8080:127.0.0.1:8080 `
+     ubuntu@EC2_PUBLIC_IP
+   ```
+
+   In your PostgreSQL client, use host `localhost`, port `5433`, database
+   `cold-chain-postgres`, username `me`, and the password from the EC2 `.env`.
+   To use Adminer, open http://localhost:8080 and connect with server `postgres`,
+   username `me`, the same password, and database `cold-chain-postgres`.
+
+   If the application runs in another container on this Compose network, connect
+   it to host `postgres`, port `5432` instead of using the SSH tunnel.
+
+This provisions an empty PostgreSQL database; it does not convert the existing
+MSSQL ingestion scripts or MSSQL-specific SQL into PostgreSQL automatically.
 
 # Phase 1
 

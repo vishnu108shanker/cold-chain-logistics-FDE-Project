@@ -1,24 +1,24 @@
 from pathlib import Path
-import pandas as pd
+import pandas as pd  # pyright: ignore[reportMissingModuleSource]
 import os
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
+from sqlalchemy import create_engine  # pyright: ignore[reportMissingImports]
+from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
 
 # Load environment variables
 load_dotenv()
 
-# Path to your CSV file
-csv_file = "data/raw/your_dataset.csv"  # ← Change this to your actual CSV path
+# Path to my CSV file
+csv_file = "../data/raw/dynamic_supply_chain_logistics_dataset.csv"  # My CSV path
+db_host = os.getenv("db_host", "localhost")  # Running from My host machine
+db_port = "5433"  # Port you published in docker-compose.yml (or 5432 if different)
+db_name = "cold-chain-postgres"  # My database name
+db_user = "me"  # My PostgreSQL user
+table_name = "cold_chain_shipments"  # Table to create
 
-# Database connection details
-db_host = "localhost"  # If running locally
-# db_host = "postgres"  # If running from inside Docker Compose network
-db_port = "5433"  # ← Change this to match your Compose port mapping (or 5432 if on same network)
-db_name = "my_cold_chain_db"
-db_user = "postgres"
-db_password = os.getenv("POSTGRES_PASSWORD", "mysecretpassword")
+db_password = os.environ["POSTGRES_PASSWORD"]
 
 # Create connection string for PostgreSQL
+# This line creates a Connection URI (Uniform Resource Identifier), which is a standardized string that tells SQLAlchemy exactly how, where, and with what credentials to connect to My database.
 connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 # Connect to PostgreSQL
@@ -31,7 +31,7 @@ df = pd.read_csv(csv_file)
 print(f"Loaded {len(df)} rows")
 
 # Insert into table
-table_name = "supply_chain_data"  # ← Change this to your desired table name
+table_name = "supply_chain_data"  # ← Change this to My desired table name
 print(f"Inserting into table '{table_name}'...")
 df.to_sql(table_name, engine, if_exists='replace', index=False)
 

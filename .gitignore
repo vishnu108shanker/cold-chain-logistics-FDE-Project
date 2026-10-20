@@ -1,2 +1,4 @@
 .venv
 .env
+__pcache__/
+cold-chain-db-key.pem
